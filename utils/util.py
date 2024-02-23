@@ -245,10 +245,9 @@ def evaluation(model, X,y, title):
    
     return  [title, mae, ks_statist]
    
-def compare_samples(dist, distribution_name, parameters):
+def compare_samples(dist, distribution_name, parameters, index = 30):
     '''Compare the true and predicted samples of the distribution'''
     
-    index = 30
     if(distribution_name == 'gumbel'):
         param1_pred = dist.loc.numpy().ravel()[index]
         param2_pred = dist.scale.numpy().ravel()[index]
