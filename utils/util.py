@@ -6,7 +6,6 @@ from matplotlib import pyplot as plt
 import seaborn as sns
 from sklearn import metrics
 from sklearn.decomposition import PCA
-from fitter import Fitter
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
@@ -242,17 +241,17 @@ def standardize(df, distribution):
     
     return std_df
 
-def evaluation(model, X,y, title):
+def evaluation(model, X,y, model_name, split):
     ''' Print the evaluation of the model and return the metrics'''
     
-    print('Evaluating the models on', title, 'set...')
+    print(f'Evaluating the {model_name} on {split} set...')
     dist = model(X)
-    mae, ks_statist = sample_metrics(dist, y, title + ' - Ground Truth', 'red')
-    print(title,':')
-    print(f'MAE: {mae:.2f}')
-    print(f'KS statistics: {ks_statist:.2f}')
+    mae, ks_statist = sample_metrics(dist, y, split + ' - Ground Truth', 'red')
+    #print(split,':')
+    #print(f'MAE: {mae:.2f}')
+    #print(f'KS statistics: {ks_statist:.2f}')
    
-    return  [title, mae, ks_statist]
+    return  [split, mae, ks_statist]
 
 def parameters_metrics(dist, true_parameters, distribution_name = 'beta', indexes = None, plot = True, calculate_metrics = True, remove_outliers = False):
 
