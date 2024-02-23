@@ -10,7 +10,6 @@ from fitter import Fitter
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras import layers
-import tensorflow_probability as tfp
 from tensorflow.keras import callbacks
 from sklearn.preprocessing import StandardScaler, MinMaxScaler, RobustScaler
 
@@ -34,6 +33,33 @@ def load_data(colab):
 
     df_indexes_test = pd.read_csv(dataset_indexes_test, sep=',', encoding='utf-8') #dataset used to extract the ids for test
     return df, df_indexes_test
+
+
+def geographic_plot(df, parameter1, parameter2):
+    # Create subplots
+    fig, ax = plt.subplots(1, 2, figsize=(15, 5))
+
+    # Plot parameter1
+    scatter1 = ax[0].scatter(df['X'], df['Y'], c=df[parameter1], cmap='viridis', s=10, alpha=0.8)
+    ax[0].set_xlabel('longitude')
+    ax[0].set_ylabel('latitude')
+    ax[0].set_title(f'{parameter1} distribution')
+
+    # Add colorbar for parameter1
+    cbar1 = plt.colorbar(scatter1, ax=ax[0])
+    cbar1.set_label(parameter1)
+
+    # Plot parameter2
+    scatter2 = ax[1].scatter(df['X'], df['Y'], c=df[parameter2], cmap='viridis', s=10, alpha=0.8)
+    ax[1].set_xlabel('longitude')
+    ax[1].set_ylabel('latitude')
+    ax[1].set_title(f'{parameter2} distribution')
+
+    # Add colorbar for parameter2
+    cbar2 = plt.colorbar(scatter2, ax=ax[1])
+    cbar2.set_label(parameter2)
+
+    plt.show()
 
 
 def make_pca(df, n_components):
@@ -152,6 +178,8 @@ def plot_series(data, labels=None, predictions=None, figsize=None, filled_versio
 def percentage_in_ci(inputs, y, dist, confidence, distribution = 'beta', start = None, end = None, plot = True, num_samples=1):
     '''Compute the percentage of true values in the confidence interval'''
     
+    inputs = inputs.reset_index()
+
     if start is None:
         start = 0
     if end is None:
@@ -159,49 +187,29 @@ def percentage_in_ci(inputs, y, dist, confidence, distribution = 'beta', start =
 
     if distribution == 'beta':
         lb, ub = stats.beta.interval(confidence, a=dist.concentration1, b=dist.concentration0)
-        mean_dist = dist.mean().numpy().ravel()
-        y_pred = dist.sample(num_samples).numpy().ravel()
-
-        if plot:
-            plot_series(pd.Series(index=inputs[start:end].index, data=mean_dist[start:end]), ci=(lb[start:end], ub[start:end]), figsize=(12,6))
-            plt.scatter(inputs[start:end].index, y_pred[start:end], marker='o', color='blue', label='Predicted');
-            plt.scatter(inputs[start:end].index, y[start:end], marker='x', color='red', label='True');
-            plt.legend()
-            plt.show()
-    
-        count_true = 0
-        for i in range(len(y)):
-            if lb[i] <= y[i] <= ub[i]:
-                count_true += 1
-        
-        true_guess = count_true/len(y)*100
-
-        return true_guess
-    
-    inputs = inputs.reset_index()
-    if distribution == 'gumbel':
+    elif distribution == 'gumbel':
         lb, ub = stats.gumbel_r.interval(confidence, loc=dist.loc, scale=dist.scale)
-        mean_dist = dist.mean().numpy().ravel()
-        y_pred = dist.sample(num_samples).numpy().ravel()
-
-        if plot:
-            plot_series(pd.Series(index=inputs[start:end].index, data=mean_dist[start:end]), ci=(lb[start:end], ub[start:end]), figsize=(12,6))
-            plt.scatter(inputs[start:end].index, y_pred[start:end], marker='o', color='blue', label='Predicted');
-            plt.scatter(inputs[start:end].index, y[start:end], marker='x', color='red', label='True');
-            plt.legend()
-            plt.show()
     
-        count_true = 0
-        for i in range(len(y)):
-            if lb[i] <= y[i] <= ub[i]:
-                count_true += 1
+    mean_dist = dist.mean().numpy().ravel()
+    y_pred = dist.sample(num_samples).numpy().ravel()
+
+    if plot:
+        plot_series(pd.Series(index=inputs[start:end].index, data=mean_dist[start:end]), ci=(lb[start:end], ub[start:end]), figsize=(12,6))
+        plt.scatter(inputs[start:end].index, y_pred[start:end], marker='o', color='blue', label='Predicted');
+        plt.scatter(inputs[start:end].index, y[start:end], marker='x', color='red', label='True');
+        plt.legend()
+        plt.show()
+
+    count_true = 0
+    for i in range(len(y)):
+        if lb[i] <= y[i] <= ub[i]:
+            count_true += 1
+    
+    true_guess = count_true/len(y)*100
+
+    return true_guess
+            
         
-        true_guess = count_true/len(y)*100
-
-        return true_guess
-    
-
-
 def standardize(df, distribution):
     '''Standardize the dataset depending on the distribution '''
 
@@ -226,17 +234,18 @@ def standardize(df, distribution):
     std_df = pd.DataFrame(std_df, columns=order_columns)
 
     # scale AMS
-    mmAMS_scaler = MinMaxScaler(feature_range=(0.001, 0.99))
-    ams = std_df[['AMS']]
-    scaled_ams = mmAMS_scaler.fit_transform(ams)
-    std_df['AMS'] = scaled_ams
+    if distribution == 'beta':
+        mmAMS_scaler = MinMaxScaler(feature_range=(0.001, 0.99))
+        ams = std_df[['AMS']]
+        scaled_ams = mmAMS_scaler.fit_transform(ams)
+        std_df['AMS'] = scaled_ams
     
     return std_df
 
 def evaluation(model, X,y, title):
     ''' Print the evaluation of the model and return the metrics'''
     
-    print('Evaluating the models on ',title,'set...')
+    print('Evaluating the models on', title, 'set...')
     dist = model(X)
     mae, ks_statist = sample_metrics(dist, y, title + ' - Ground Truth', 'red')
     print(title,':')
@@ -244,6 +253,118 @@ def evaluation(model, X,y, title):
     print(f'KS statistics: {ks_statist:.2f}')
    
     return  [title, mae, ks_statist]
+
+def parameters_metrics(dist, true_parameters, distribution_name = 'beta', indexes = None, plot = True, calculate_metrics = True, remove_outliers = False):
+
+    if distribution_name == 'gumbel':
+        param1_name_true = 'loc'
+        param1_name_pred = 'loc_pred'
+        param1_pred = dist.loc.numpy().ravel()
+    
+        param2_name_true = 'scale'
+        param2_name_pred = 'scale_pred'
+        param2_pred = dist.scale.numpy().ravel()
+    
+    elif distribution_name == 'beta':
+        param1_name_true = 'alpha'
+        param1_name_pred = 'alpha_pred'
+        param1_pred = dist.concentration1.numpy().ravel()
+    
+        param2_name_true = 'beta'
+        param2_name_pred = 'beta_pred'
+        param2_pred = dist.concentration0.numpy().ravel()
+    
+    param1_true = true_parameters[param1_name_true].to_numpy()
+    param1_max = param1_pred.max()
+    param1_min = param1_pred.min()
+
+    param2_true = true_parameters[param2_name_true].to_numpy()
+    param2_max = param2_pred.max()
+    param2_min = param2_pred.min()
+
+    if remove_outliers:
+        # remove from parameters the outliers in the true values
+        out_indexes_param1 = np.where(param1_true > 500) #change value  
+        if len(out_indexes_param1[0]) > 0:
+            parameters = true_parameters.drop(out_indexes_param1)         
+        out_indexes_param2 = np.where(param2_true > 1500) #change value
+        if len(out_indexes_param2[0]) > 0:
+            parameters = parameters.drop(out_indexes_param2)
+    
+    if plot:
+        parameters = true_parameters.copy()
+        parameters[param1_name_pred] = param1_pred
+        parameters[param2_name_pred] = param2_pred
+
+        fig, ax = plt.subplots(1, 2, figsize=(15, 5))
+
+        sns.scatterplot(x=param1_name_pred, y=param1_name_true, data=parameters, hue='duration[h]', ax=ax[0], marker='o')
+        x = np.linspace(param1_min, param1_max, 100)
+        ax[0].plot(x, x, color='black', linestyle='--')
+        ax[0].set_xlabel(param1_name_pred)
+        ax[0].set_ylabel(param1_name_true + '_true')
+        ax[0].set_title(f'Scatter plot of the predicted {param1_name_true} values')
+        
+        #ax[1].scatter(scale_pred, scale_true, color='blue', label='scale', marker='o')
+        sns.scatterplot(x=param2_name_pred, y=param2_name_true, data=parameters, hue='duration[h]', ax=ax[1], marker='o')
+        x = np.linspace(param2_min, param2_max, 100)
+        ax[1].plot(x, x, color='black', linestyle='--')
+        ax[1].set_xlabel(param2_name_pred)
+        ax[1].set_ylabel(param2_name_true + '_true')
+        ax[1].set_title(f'Scatter plot of the predicted {param2_name_true} values')
+        plt.show()
+
+    if calculate_metrics:
+        
+        metrics_param1_durations = {}
+        metrics_param2_durations = {}
+        
+        param1_pred = parameters[param1_name_pred]
+        param1_true = parameters[param1_name_true]
+
+        param2_pred = parameters[param2_name_pred]
+        param2_true = parameters[param2_name_true]
+
+        param1_biasr_global = ((param1_true - param1_pred) / param1_true).mean()
+        param1_rmse_global = metrics.mean_squared_error(param1_true, param1_pred)
+        param1_pcc_global = np.corrcoef(param1_true, param1_pred)[0, 1]
+
+        param2_biasr_global = ((param2_true - param2_pred) / param2_true).mean()
+        param2_rmse_global = metrics.mean_squared_error(param2_true, param2_pred)
+        param2_pcc_global = np.corrcoef(param2_true, param2_pred)[0, 1]
+
+        metrics_param1_durations['global'] = [param1_biasr_global, param1_rmse_global, param1_pcc_global]
+        metrics_param2_durations['global'] = [param2_biasr_global, param2_rmse_global, param2_pcc_global]
+
+        for d in [1, 3, 6, 12, 24]:
+            ids = indexes[d]
+
+            param1_pred = parameters[param1_name_pred][ids]
+            param1_true = parameters[param1_name_true][ids]
+
+            param2_pred = parameters[param2_name_pred][ids]
+            param2_true = parameters[param2_name_true][ids]
+
+            param1_biasr = ((param1_true - param1_pred) / param1_true).mean()
+            param1_rmse = metrics.mean_squared_error(param1_true, param1_pred)
+            param1_pcc = np.corrcoef(param1_true, param1_pred)[0, 1]
+
+            param2_biasr = ((param2_true - param2_pred) / param2_true).mean()
+            param2_rmse = metrics.mean_squared_error(param2_true, param2_pred)
+            param2_pcc = np.corrcoef(param2_true, param2_pred)[0, 1]
+
+            metrics_param1_durations[d] = [param1_biasr, param1_rmse, param1_pcc]
+            metrics_param2_durations[d] = [param2_biasr, param2_rmse, param2_pcc]
+
+        metrics_param1_durations = pd.DataFrame(metrics_param1_durations, index=['biasr', 'rmse', 'pcc'])
+        metrics_param1_durations['global'] = [param1_biasr_global, param1_rmse_global, param1_pcc_global]       
+        
+        metrics_param2_durations = pd.DataFrame(metrics_param2_durations, index=['biasr', 'rmse', 'pcc'])
+        metrics_param2_durations['global'] = [param2_biasr_global, param2_rmse_global, param2_pcc_global]
+
+        return metrics_param1_durations, metrics_param2_durations
+
+    return None
    
 def compare_samples(dist, distribution_name, parameters, index = 30):
     '''Compare the true and predicted samples of the distribution'''
@@ -253,17 +374,20 @@ def compare_samples(dist, distribution_name, parameters, index = 30):
         param2_pred = dist.scale.numpy().ravel()[index]
         param1_name = 'loc'
         param2_name = 'scale'
+        param1_true = parameters[param1_name][index]
+        param2_true = parameters[param2_name][index]
+        samples_pred = stats.gumbel_r.rvs(loc=param1_pred, scale=param2_pred, size=10000)
+        samples_true = stats.gumbel_r.rvs(loc=parameters['loc'][index], scale=parameters['scale'][index], size=10000)
 
     if(distribution_name == 'beta'):
         param1_pred = dist.concentration1.numpy().ravel()[index]
         param2_pred = dist.concentration0.numpy().ravel()[index]
         param1_name = 'alpha'
         param2_name = 'beta'
-
-    param1_true = parameters[param1_name][index]
-    param2_true = parameters[param2_name][index]
-    samples_pred = stats.beta.rvs(a=param1_pred, b=param2_pred, size=10000)
-    samples_true = stats.beta.rvs(a=param1_true, b=param2_true, size=10000)
+        param1_true = parameters[param1_name][index]
+        param2_true = parameters[param2_name][index]
+        samples_pred = stats.beta.rvs(a=param1_pred, b=param2_pred, size=10000)
+        samples_true = stats.beta.rvs(a=param1_true, b=param2_true, size=10000)
 
     print('True',param1_name,': ', param1_true, 'Predicted ',param1_name,':',param1_pred)
     print('True',param2_name,': ', param2_true, 'Predicted ',param2_name,':', param2_pred)
