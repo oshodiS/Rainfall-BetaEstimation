@@ -283,10 +283,10 @@ def parameters_metrics(dist, true_parameters, distribution_name = 'beta', indexe
 
     if remove_outliers:
         # remove from parameters the outliers in the true values
-        out_indexes_param1 = np.where(param1_true > 500) #change value  
+        out_indexes_param1 = np.where(param1_true > 40) #change value  
         if len(out_indexes_param1[0]) > 0:
             parameters = true_parameters.drop(out_indexes_param1)         
-        out_indexes_param2 = np.where(param2_true > 1500) #change value
+        out_indexes_param2 = np.where(param2_true > 200) #change value
         if len(out_indexes_param2[0]) > 0:
             parameters = parameters.drop(out_indexes_param2)
     
@@ -394,3 +394,51 @@ def compare_samples(dist, distribution_name, parameters, index = 30):
     plt.hist(samples_pred, bins='auto', alpha=0.5, label='Predicted', density=True, color='blue');
     plt.legend()
     plt.show()
+
+
+
+def get_comparison_plot(df1, df2, title, dist_name, colors):
+    '''
+    Function to plot the comparison of the results between the models.
+    '''
+    fig, axes = plt.subplots(2, 1, figsize=(13, 7)) 
+
+    if(dist_name == 'gumbel'):
+        param1 = 'loc'
+        param2 = 'scale'
+    elif(dist_name == 'beta'):
+        param1 = 'alpha'
+        param2 = 'beta' 
+    
+    # Plot for the first dataframe
+    colors = sns.color_palette(colors, 4)
+    df1.plot(kind='bar', ax=axes[0], rot=0, color=colors)
+    axes[0].set_title(title +' Comparison - ' + param1)
+    axes[0].set_xlabel('Models')
+    axes[0].set_ylabel(title)
+    axes[0].legend(title='metrics', bbox_to_anchor=(1.05, 1), loc='upper left')
+    if (df1 < 0).all().all():
+        axes[0].invert_yaxis()  # Invert y-axis if all values are negative
+    axes[0].axhline(0, color='grey', linestyle='--')  # Add line at zero value
+
+    # Plot for the second dataframe
+    df2.plot(kind='bar', ax=axes[1], rot=0, color=colors)
+    axes[1].set_title(title +' Comparison - ' + param2)
+    axes[1].set_xlabel('Models')
+    axes[1].set_ylabel(title)
+    axes[1].legend(title='metrics', bbox_to_anchor=(1.05, 1), loc='upper left')
+    if (df2 < 0).all().all():
+        axes[1].invert_yaxis()  # Invert y-axis if all values are negative
+    axes[1].axhline(0, color='grey', linestyle='--')  # Add line at zero value
+    plt.tight_layout()
+
+def get_global_results(metrics_name,models_name,models_metrics):    
+    df_result = pd.DataFrame()
+    for i, name_metrics in enumerate(metrics_name):
+        for j in range(len(models_name)):
+            df_result[name_metrics + "_" + models_name[j]  ] = models_metrics[j].iloc[i,:]
+    return df_result
+
+
+
+
