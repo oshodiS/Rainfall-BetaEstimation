@@ -113,7 +113,7 @@ def plot_training_history(history=None, figsize=None, print_final_scores=True):
             s += f', {vll:.4f} (validation)'
         print(s)
 
-def sample_metrics(dist, y, label, color, plot = True):
+def sample_metrics(dist, y):
     '''
     Compute the mean absolute error and the Kolmogorov-Smirnov statistics
     '''
@@ -123,14 +123,15 @@ def sample_metrics(dist, y, label, color, plot = True):
     mae = metrics.mean_absolute_error(y, y_pred)
     ks_statistics, _ = stats.ks_2samp(y, y_pred)
 
-    if plot:
-        plt.hist(y, bins='auto', alpha=0.7, label=label, density=True, color='green');
-        #sns.kdeplot(y_pred, label='Estimated sample', fill=True)
-        plt.hist(y_pred, bins='auto', alpha=0.5, label='Predicted', density=True, color=color);
-        plt.legend()
-        plt.show()
-
     return mae, ks_statistics
+
+def plot_metrics(y, y_pred, color):
+    plt.hist(y, bins='auto', alpha=0.7, label="Ground Truth", density=True, color='green');
+    #sns.kdeplot(y_pred, label='Estimated sample', fill=True)
+    plt.hist(y_pred, bins='auto', alpha=0.5, label='Predicted', density=True, color=color);
+    plt.legend()
+    plt.show()
+
 
 
 def plot_series(data, labels=None, predictions=None, figsize=None, filled_version=None, std=None, ci=None, title=None, ylim=None):
@@ -244,16 +245,16 @@ def standardize(df, distribution):
 def evaluation(model, X,y, model_name, split):
     ''' Print the evaluation of the model and return the metrics'''
     
-    print(f'Evaluating the {model_name} on {split} set...')
+    print(f'Evaluating the {model_name} model on {split} set...')
     dist = model(X)
-    mae, ks_statist = sample_metrics(dist, y, split + ' - Ground Truth', 'red')
+    mae, ks_statist = sample_metrics(dist, y)
     #print(split,':')
     #print(f'MAE: {mae:.2f}')
     #print(f'KS statistics: {ks_statist:.2f}')
    
     return  [split, mae, ks_statist]
 
-def parameters_metrics(dist, true_parameters, distribution_name = 'beta', indexes = None, plot = True, calculate_metrics = True, remove_outliers = False):
+def parameters_metrics(dist, true_parameters, distribution_name = 'beta',  indexes = None, plot = True, calculate_metrics = True, remove_outliers = False, title = 'Test'):
 
     if distribution_name == 'gumbel':
         param1_name_true = 'loc'
@@ -295,14 +296,14 @@ def parameters_metrics(dist, true_parameters, distribution_name = 'beta', indexe
         parameters[param1_name_pred] = param1_pred
         parameters[param2_name_pred] = param2_pred
 
-        fig, ax = plt.subplots(1, 2, figsize=(15, 5))
+        fig, ax = plt.subplots(1, 2, figsize=(10, 5))
 
         sns.scatterplot(x=param1_name_pred, y=param1_name_true, data=parameters, hue='duration[h]', ax=ax[0], marker='o')
         x = np.linspace(param1_min, param1_max, 100)
         ax[0].plot(x, x, color='black', linestyle='--')
         ax[0].set_xlabel(param1_name_pred)
         ax[0].set_ylabel(param1_name_true + '_true')
-        ax[0].set_title(f'Scatter plot of the predicted {param1_name_true} values')
+        ax[0].set_title(f'{title} - Scatter plot of the predicted {param1_name_true} values')
         
         #ax[1].scatter(scale_pred, scale_true, color='blue', label='scale', marker='o')
         sns.scatterplot(x=param2_name_pred, y=param2_name_true, data=parameters, hue='duration[h]', ax=ax[1], marker='o')
@@ -310,7 +311,7 @@ def parameters_metrics(dist, true_parameters, distribution_name = 'beta', indexe
         ax[1].plot(x, x, color='black', linestyle='--')
         ax[1].set_xlabel(param2_name_pred)
         ax[1].set_ylabel(param2_name_true + '_true')
-        ax[1].set_title(f'Scatter plot of the predicted {param2_name_true} values')
+        ax[1].set_title(f'{title} - Scatter plot of the predicted {param2_name_true} values')
         plt.show()
 
     if calculate_metrics:
