@@ -326,11 +326,11 @@ def parameters_metrics(dist, true_parameters, distribution_name = 'beta',  index
         param2_true = parameters[param2_name_true]
 
         param1_biasr_global = ((param1_true - param1_pred) / param1_true).mean()
-        param1_rmse_global = metrics.mean_squared_error(param1_true, param1_pred)
+        param1_rmse_global = metrics.root_mean_squared_error(param1_true, param1_pred)
         param1_pcc_global = np.corrcoef(param1_true, param1_pred)[0, 1]
 
         param2_biasr_global = ((param2_true - param2_pred) / param2_true).mean()
-        param2_rmse_global = metrics.mean_squared_error(param2_true, param2_pred)
+        param2_rmse_global = metrics.root_mean_squared_error(param2_true, param2_pred)
         param2_pcc_global = np.corrcoef(param2_true, param2_pred)[0, 1]
 
         metrics_param1_durations['global'] = [param1_biasr_global, param1_rmse_global, param1_pcc_global]
@@ -346,11 +346,11 @@ def parameters_metrics(dist, true_parameters, distribution_name = 'beta',  index
             param2_true = parameters[param2_name_true][ids]
 
             param1_biasr = ((param1_true - param1_pred) / param1_true).mean()
-            param1_rmse = metrics.mean_squared_error(param1_true, param1_pred)
+            param1_rmse = metrics.root_mean_squared_error(param1_true, param1_pred)
             param1_pcc = np.corrcoef(param1_true, param1_pred)[0, 1]
 
             param2_biasr = ((param2_true - param2_pred) / param2_true).mean()
-            param2_rmse = metrics.mean_squared_error(param2_true, param2_pred)
+            param2_rmse = metrics.root_mean_squared_error(param2_true, param2_pred)
             param2_pcc = np.corrcoef(param2_true, param2_pred)[0, 1]
 
             metrics_param1_durations[d] = [param1_biasr, param1_rmse, param1_pcc]
