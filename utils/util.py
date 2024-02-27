@@ -234,11 +234,11 @@ def standardize(df, distribution):
     std_df = pd.DataFrame(std_df, columns=order_columns)
 
     # scale AMS
-    if distribution == 'beta':
+    '''if distribution == 'beta':
         mmAMS_scaler = MinMaxScaler(feature_range=(0.001, 0.99))
         ams = std_df[['AMS']]
         scaled_ams = mmAMS_scaler.fit_transform(ams)
-        std_df['AMS'] = scaled_ams
+        std_df['AMS'] = scaled_ams'''
     
     return std_df
 
