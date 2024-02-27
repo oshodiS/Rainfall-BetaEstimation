@@ -113,25 +113,12 @@ def plot_training_history(history=None, figsize=None, print_final_scores=True):
             s += f', {vll:.4f} (validation)'
         print(s)
 
-def sample_metrics(dist, y):
-    '''
-    Compute the mean absolute error and the Kolmogorov-Smirnov statistics
-    '''
-    
-    num_samples = 1
-    y_pred = dist.sample(num_samples).numpy().ravel()
-    mae = metrics.mean_absolute_error(y, y_pred)
-    ks_statistics, _ = stats.ks_2samp(y, y_pred)
-
-    return mae, ks_statistics
-
-def plot_metrics(y, y_pred, color):
+def plot_hist_samples(y, y_pred, color):
     plt.hist(y, bins='auto', alpha=0.7, label="Ground Truth", density=True, color='green');
     #sns.kdeplot(y_pred, label='Estimated sample', fill=True)
     plt.hist(y_pred, bins='auto', alpha=0.5, label='Predicted', density=True, color=color);
     plt.legend()
     plt.show()
-
 
 
 def plot_series(data, labels=None, predictions=None, figsize=None, filled_version=None, std=None, ci=None, title=None, ylim=None):
@@ -241,18 +228,6 @@ def standardize(df, distribution):
         std_df['AMS'] = scaled_ams'''
     
     return std_df
-
-def evaluation(model, X,y, model_name, split):
-    ''' Print the evaluation of the model and return the metrics'''
-    
-    print(f'Evaluating the {model_name} model on {split} set...')
-    dist = model(X)
-    mae, ks_statist = sample_metrics(dist, y)
-    #print(split,':')
-    #print(f'MAE: {mae:.2f}')
-    #print(f'KS statistics: {ks_statist:.2f}')
-   
-    return  [split, mae, ks_statist]
 
 def parameters_metrics(dist, true_parameters, distribution_name = 'beta',  indexes = None, plot = True, calculate_metrics = True, remove_outliers = False, title = 'Test'):
 
@@ -388,13 +363,19 @@ def compare_samples(dist, distribution_name, parameters, index = 30):
         param2_true = parameters[param2_name][index]
         samples_pred = stats.beta.rvs(a=param1_pred, b=param2_pred, size=10000)
         samples_true = stats.beta.rvs(a=param1_true, b=param2_true, size=10000)
+    
+    ks_statistics, _ = stats.ks_2samp(samples_true, samples_pred)
 
-    print('True',param1_name,': ', param1_true, 'Predicted ',param1_name,':',param1_pred)
-    print('True',param2_name,': ', param2_true, 'Predicted ',param2_name,':', param2_pred)
+    print(f'True {param1_name}: {param1_true:.2f}, Predicted {param1_name}: {param1_pred:.2f}')
+    print(f'True {param2_name}: {param2_true:.2f}, Predicted {param2_name}: {param2_pred:.2f}')
+    print('KS statistics: ', ks_statistics)
+    
     plt.hist(samples_true, bins='auto', alpha=0.7, label='True', density=True, color='green');
     plt.hist(samples_pred, bins='auto', alpha=0.5, label='Predicted', density=True, color='blue');
     plt.legend()
     plt.show()
+
+    
 
 
 
