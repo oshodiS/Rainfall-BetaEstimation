@@ -283,11 +283,11 @@ def parameters_metrics(dist, true_parameters, distribution_name = 'beta',  index
     
     param1_true = true_parameters[param1_name_true].to_numpy()
     param1_max = param1_pred.max()
-    param1_min = param1_pred.min()
+    param1_min = param1_pred.min() 
 
     param2_true = true_parameters[param2_name_true].to_numpy()
     param2_max = param2_pred.max()
-    param2_min = param2_pred.min()
+    param2_min = param2_pred.min() 
 
     if remove_outliers:
         # remove from parameters the outliers in the true values
@@ -303,7 +303,7 @@ def parameters_metrics(dist, true_parameters, distribution_name = 'beta',  index
         parameters[param1_name_pred] = param1_pred
         parameters[param2_name_pred] = param2_pred
 
-        fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+        fig, ax = plt.subplots(1, 2, figsize=(15, 5))
 
         sns.scatterplot(x=param1_name_pred, y=param1_name_true, data=parameters, hue='duration[h]', ax=ax[0], marker='o')
         x = np.linspace(param1_min, param1_max, 100)
@@ -373,7 +373,7 @@ def parameters_metrics(dist, true_parameters, distribution_name = 'beta',  index
 
     return None
    
-def compare_samples(dist, distribution_name, parameters, index = 30):
+def compare_samples(dist, distribution_name, parameters, seed, index = 30):
     '''Compare the true and predicted samples of the distribution'''
     
     if(distribution_name == 'gumbel'):
@@ -383,8 +383,8 @@ def compare_samples(dist, distribution_name, parameters, index = 30):
         param2_name = 'scale'
         param1_true = parameters[param1_name][index]
         param2_true = parameters[param2_name][index]
-        samples_pred = stats.gumbel_r.rvs(loc=param1_pred, scale=param2_pred, size=10000)
-        samples_true = stats.gumbel_r.rvs(loc=parameters['loc'][index], scale=parameters['scale'][index], size=10000)
+        samples_pred = stats.gumbel_r.rvs(loc=param1_pred, scale=param2_pred, size=10000, random_state=seed)
+        samples_true = stats.gumbel_r.rvs(loc=parameters['loc'][index], scale=parameters['scale'][index], size=10000, random_state=seed)
 
     if(distribution_name == 'beta'):
         param1_pred = dist.concentration1.numpy().ravel()[index]
@@ -393,8 +393,8 @@ def compare_samples(dist, distribution_name, parameters, index = 30):
         param2_name = 'beta'
         param1_true = parameters[param1_name][index]
         param2_true = parameters[param2_name][index]
-        samples_pred = stats.beta.rvs(a=param1_pred, b=param2_pred, size=10000)
-        samples_true = stats.beta.rvs(a=param1_true, b=param2_true, size=10000)
+        samples_pred = stats.beta.rvs(a=param1_pred, b=param2_pred, size=10000, random_state=seed)
+        samples_true = stats.beta.rvs(a=param1_true, b=param2_true, size=10000, random_state=seed)
     
     ks_statistics, _ = stats.ks_2samp(samples_true, samples_pred)
 
