@@ -33,6 +33,24 @@ def load_data(colab):
     df_indexes_test = pd.read_csv(dataset_indexes_test, sep=',', encoding='utf-8') #dataset used to extract the ids for test
     return df, df_indexes_test
 
+def fix_random_seed(seed):
+    np.random.seed(seed)
+    tf.random.set_seed(seed)
+    
+def train_val_test_split(df, df_index_test, validation_split=0.1):
+    test_ID = df_index_test['ID'].to_list()[:100]
+    test_df = df[df['ID'].isin(test_ID)]
+    test_df.reset_index(drop=True, inplace=True)
+    
+    df = df.drop(df[df['ID'].isin(test_ID)].index)
+    df.reset_index(drop=True, inplace=True)
+    
+    df = df.sort_values(by=['ID', 'duration[h]'])
+    train_df, val_df = train_test_split(df, test_size=validation_split, shuffle=False)
+    train_df.reset_index(drop=True, inplace=True)
+    val_df.reset_index(drop=True, inplace=True)
+    
+    return train_df, val_df, test_df
 
 def geographic_plot(df, parameter1, parameter2):
     # Create subplots
@@ -228,6 +246,20 @@ def standardize(df, distribution):
         std_df['AMS'] = scaled_ams'''
     
     return std_df
+
+def scale_AMS(df, min_AMS, max_AMS, k = 1.2):
+    """
+        df: dataframe
+        k: Multiplication factor to extend the range of AMS values. Defaults to 1.
+        IdD: To specify how standardize. Defaults to False.
+    """
+
+    min_AMS = min_AMS - 1e-2 # to avoid zero values
+    max_AMS = max_AMS * k
+
+    df['AMS'] = df.apply(lambda row: (row['AMS'] - min_AMS) / (max_AMS - min_AMS), axis=1)
+
+    return df
 
 def parameters_metrics(dist, true_parameters, distribution_name = 'beta',  indexes = None, plot = True, calculate_metrics = True, remove_outliers = False, title = 'Test'):
 
