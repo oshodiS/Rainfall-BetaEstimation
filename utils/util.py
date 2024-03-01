@@ -402,8 +402,10 @@ def compare_samples(dist, distribution_name, parameters, seed, index = 30):
     print(f'True {param2_name}: {param2_true:.2f}, Predicted {param2_name}: {param2_pred:.2f}')
     print('KS statistics: ', ks_statistics)
     
-    plt.hist(samples_true, bins='auto', alpha=0.7, label='True', density=True, color='green');
-    plt.hist(samples_pred, bins='auto', alpha=0.5, label='Predicted', density=True, color='blue');
+    plt.hist(samples_pred, bins='auto', alpha=0.5, label='Model', color='red');
+    plt.hist(samples_true, bins='auto', alpha=0.7, label='Scipy', color='green');
+    plt.xlabel('AMS')
+    plt.ylabel('Count')
     plt.legend()
     plt.show()
 
