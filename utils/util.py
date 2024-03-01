@@ -403,7 +403,7 @@ def compare_samples(dist, distribution_name, parameters, seed, index = 30):
         param1_true = parameters[param1_name][index]
         param2_true = parameters[param2_name][index]
         samples_pred = stats.gumbel_r.rvs(loc=param1_pred, scale=param2_pred, size=10000, random_state=seed)
-        samples_true = stats.gumbel_r.rvs(loc=parameters['loc'][index], scale=parameters['scale'][index], size=10000, random_state=seed)
+        samples_true = stats.gumbel_r.rvs(loc=param1_true, scale=param2_true, size=10000, random_state=seed)
 
     if(distribution_name == 'beta'):
         param1_pred = dist.concentration1.numpy().ravel()[index]
@@ -414,19 +414,21 @@ def compare_samples(dist, distribution_name, parameters, seed, index = 30):
         param2_true = parameters[param2_name][index]
         samples_pred = stats.beta.rvs(a=param1_pred, b=param2_pred, size=10000, random_state=seed)
         samples_true = stats.beta.rvs(a=param1_true, b=param2_true, size=10000, random_state=seed)
-    
-    ks_statistics, _ = stats.ks_2samp(samples_true, samples_pred)
+            
+    ks_statistics, p_value = stats.ks_2samp(samples_true, samples_pred)
 
     print(f'True {param1_name}: {param1_true:.2f}, Predicted {param1_name}: {param1_pred:.2f}')
     print(f'True {param2_name}: {param2_true:.2f}, Predicted {param2_name}: {param2_pred:.2f}')
     print('KS statistics: ', ks_statistics)
-    
+    print('p-value: ', p_value)
+
     plt.hist(samples_pred, bins='auto', alpha=0.5, label='Model', color='red');
     plt.hist(samples_true, bins='auto', alpha=0.7, label='Scipy', color='green');
     plt.xlabel('AMS')
     plt.ylabel('Count')
     plt.legend()
     plt.show()
+
 
     
 
