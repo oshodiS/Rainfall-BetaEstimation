@@ -132,9 +132,11 @@ def plot_training_history(history=None, figsize=None, print_final_scores=True):
         print(s)
 
 def plot_hist_samples(y, y_pred, color):
-    plt.hist(y, bins='auto', alpha=0.7, label="Ground Truth", density=True, color='green');
+    plt.hist(y, bins='auto', alpha=0.7, label="Data", color='green');
     #sns.kdeplot(y_pred, label='Estimated sample', fill=True)
-    plt.hist(y_pred, bins='auto', alpha=0.5, label='Predicted', density=True, color=color);
+    plt.hist(y_pred, bins='auto', alpha=0.5, label='Sample', color=color);
+    plt.xlabel('AMS')
+    plt.ylabel('Counts')
     plt.legend()
     plt.show()
 
@@ -260,6 +262,23 @@ def scale_AMS(df, min_AMS, max_AMS, k = 1.2):
     df['AMS'] = df.apply(lambda row: (row['AMS'] - min_AMS) / (max_AMS - min_AMS), axis=1)
 
     return df
+
+def inverse_scale_AMS(AMS_array, min_AMS, max_AMS, k=1.2):
+    """
+    AMS_array: NumPy array of AMS values.
+    min_AMS, max_AMS: Minimum and maximum AMS values for scaling.
+    k: Multiplication factor to extend the range of AMS values. Defaults to 1.2.
+    """
+    
+    # Adjust the min and max AMS values according to the provided adjustments
+    min_AMS_adjusted = min_AMS - 1e-2  # to avoid zero values
+    max_AMS_adjusted = max_AMS * k
+
+    # Scale the AMS values directly in the array
+    scaled_AMS = AMS_array * (max_AMS_adjusted - min_AMS_adjusted) + min_AMS_adjusted
+
+    return scaled_AMS
+
 
 def parameters_metrics(dist, true_parameters, distribution_name = 'beta',  indexes = None, plot = True, calculate_metrics = True, remove_outliers = False, title = 'Test'):
 
@@ -402,8 +421,8 @@ def compare_samples(dist, distribution_name, parameters, seed, index = 30):
     print(f'True {param2_name}: {param2_true:.2f}, Predicted {param2_name}: {param2_pred:.2f}')
     print('KS statistics: ', ks_statistics)
     
-    plt.hist(samples_true, bins='auto', alpha=0.7, label='True', density=True, color='green');
-    plt.hist(samples_pred, bins='auto', alpha=0.5, label='Predicted', density=True, color='blue');
+    plt.hist(samples_true, bins='auto', alpha=0.7, label='True', color='green');
+    plt.hist(samples_pred, bins='auto', alpha=0.5, label='Predicted', color='blue');
     plt.legend()
     plt.show()
 
