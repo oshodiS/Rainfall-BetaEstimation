@@ -477,5 +477,78 @@ def get_global_results(metrics_name,models_name,models_metrics):
     return df_result
 
 
+def parameters_to_dict(test_df, distribution_name, model, DURATION):
+    
+    test_df = test_df.drop_duplicates(inplace=False) #so that each station is present once at a given duration
+    
+    param1_dict_pred = {}
+    param2_dict_pred = {}
+    
+    if distribution_name == 'beta':
+
+        for duration in DURATION:
+            test = test_df[test_df['duration[h]_'+str(duration)] == 1]
+            id = test['ID']
+            
+            test = test[test.columns[1:]] #test contains ID which is not an input to the model
+            dist = model(test.values)
+            
+            alpha_pred = dist.concentration1.numpy().ravel()
+            beta_pred = dist.concentration0.numpy().ravel()
+            
+            param1_dict_pred[duration] = dict(zip(id, alpha_pred))
+            param2_dict_pred[duration] = dict(zip(id, beta_pred))
+    
+    elif distribution_name == 'gumbel':
+
+        for duration in DURATION:
+            test = test_df[test_df['duration[h]_'+str(duration)] == 1]
+            id = test['ID']
+            
+            test = test[test.columns[1:]]
+            dist = model(test.values)
+            
+            loc_pred = dist.loc.numpy().ravel()
+            scale_pred = dist.scale.numpy().ravel()
+            
+            param1_dict_pred[duration] = dict(zip(id, loc_pred))
+            param2_dict_pred[duration] = dict(zip(id, scale_pred))
+    
+    else:
+        raise ValueError('Distribution not supported')
+    
+    return param1_dict_pred, param2_dict_pred
+
+
+def KS_statistic(AMS_dict_test, param1_dict, param2_dict, distribution_name, DURATION):
+    
+    ks_stat_dict = {}
+    
+    if distribution_name == 'beta':
+        dist = stats.beta
+    elif distribution_name == 'gumbel':
+        dist = stats.gumbel_r
+    else:
+        raise ValueError('Distribution not supported')
+    
+    for duration in DURATION:
+        
+        ams = AMS_dict_test[duration]
+    
+        param1 = param1_dict[duration]
+        param2 = param2_dict[duration]
+        
+        ks_stat_dict[duration] = {}
+        
+        for id in ams.keys():
+            p1 = param1[id]
+            p2 = param2[id]
+            
+            dist_pred = dist(p1, p2)
+            
+            ks_stat_dict[duration][id] = stats.kstest(ams[id], dist_pred.cdf)[0]
+            
+    return ks_stat_dict
+
 
 
