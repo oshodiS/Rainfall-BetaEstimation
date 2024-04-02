@@ -523,6 +523,7 @@ def parameters_to_dict(test_df, distribution_name, model, DURATION):
 def KS_statistic(AMS_dict_test, param1_dict, param2_dict, distribution_name, DURATION):
     
     ks_stat_dict = {}
+    p_value_dict = {}
     
     if distribution_name == 'beta':
         dist = stats.beta
@@ -539,6 +540,7 @@ def KS_statistic(AMS_dict_test, param1_dict, param2_dict, distribution_name, DUR
         param2 = param2_dict[duration]
         
         ks_stat_dict[duration] = {}
+        p_value_dict[duration] = {}
         
         for id in ams.keys():
             p1 = param1[id]
@@ -546,9 +548,9 @@ def KS_statistic(AMS_dict_test, param1_dict, param2_dict, distribution_name, DUR
             
             dist_pred = dist(p1, p2)
             
-            ks_stat_dict[duration][id] = stats.kstest(ams[id], dist_pred.cdf)[0]
+            ks_stat_dict[duration][id], p_value_dict[duration][id] = stats.ks_1samp(ams[id], dist_pred.cdf)[:2]
             
-    return ks_stat_dict
+    return ks_stat_dict, p_value_dict
 
 
 
