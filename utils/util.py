@@ -17,8 +17,16 @@ from scipy import stats
 
 def load_data(colab):
     '''
-    Load the dataset from the csv file
+    Load the dataset from the csv file.
+
+    Parameters:
+    - colab (bool): Boolean indicating whether running in Google Colab environment or not.
+
+    Returns:
+    - df (DataFrame): DataFrame containing the main dataset.
+    - df_indexes_test (DataFrame): DataFrame containing indexes used for testing.
     '''
+    
     if colab:
         data_folder = Path.cwd() / "drive" / "MyDrive" / "A3I" / "data"
         dataset_path = data_folder.joinpath("AMS_descritt_noSM_meltD_adim.csv")
@@ -30,14 +38,73 @@ def load_data(colab):
     df = pd.read_csv(dataset_path, sep=',', encoding='utf-8')
     df.drop(df.columns[[0]], axis=1, inplace=True)
 
-    df_indexes_test = pd.read_csv(dataset_indexes_test, sep=',', encoding='utf-8') #dataset used to extract the ids for test
+    #dataset containing the ids to extract from df the test-set
+    df_indexes_test = pd.read_csv(dataset_indexes_test, sep=',', encoding='utf-8') 
+    
     return df, df_indexes_test
 
+    
 def fix_random_seed(seed):
+    '''
+    Fix the random seed for NumPy and TensorFlow.
+
+    Parameters:
+    - seed (int): Random seed value.
+
+    Returns:
+    None
+    '''
     np.random.seed(seed)
     tf.random.set_seed(seed)
+
+
+def standardize(df, distribution=None):
+    '''
+    Standardize the dataset based on the specified distribution.
+
+    Parameters:
+    - df (DataFrame): DataFrame containing the dataset to be standardized.
+    - distribution (str): Default None. If 'gumbel' it means you preserved 'loc' and 'scale' columns, otherwise you didn't. 
+
+    Returns:
+    - std_df (DataFrame): DataFrame containing the standardized dataset.
+    '''
+
+    if distribution == 'gumbel':
+        features_not_to_scale = ['ID', 'AMS', 'mean_IdD', 'loc', 'scale', 'duration[h]']  
+    else:
+        features_not_to_scale = ['ID', 'AMS', 'mean_IdD', 'duration[h]']
+        
+    scaler = StandardScaler()
     
+    features_to_scale = df.columns.drop(features_not_to_scale)
+    order_columns = features_not_to_scale + list(features_to_scale)
+    scaled_data = scaler.fit_transform(df[features_to_scale])
+    non_scaled_data = df[features_not_to_scale]
+    
+    std_df = np.concatenate([non_scaled_data, scaled_data], axis=1)
+
+    # convert to dataframe
+    std_df = pd.DataFrame(std_df, columns=order_columns)
+    
+    return std_df
+
+
 def train_val_test_split(df, df_index_test, validation_split=0.1):
+    '''
+    Split the dataset into training, validation, and test sets.
+
+    Parameters:
+    - df (DataFrame): DataFrame containing the main dataset.
+    - df_index_test (DataFrame): DataFrame containing indexes used for testing.
+    - validation_split (float): Fraction of the dataset to include in the validation set. Defaults to 0.1.
+
+    Returns:
+    - train_df (DataFrame): DataFrame containing the training set.
+    - val_df (DataFrame): DataFrame containing the validation set.
+    - test_df (DataFrame): DataFrame containing the test set.
+    '''
+
     test_ID = df_index_test['ID'].to_list()[:100]
     test_df = df[df['ID'].isin(test_ID)]
     test_df.reset_index(drop=True, inplace=True)
@@ -49,10 +116,65 @@ def train_val_test_split(df, df_index_test, validation_split=0.1):
     train_df, val_df = train_test_split(df, test_size=validation_split, shuffle=False)
     train_df.reset_index(drop=True, inplace=True)
     val_df.reset_index(drop=True, inplace=True)
-    
+
     return train_df, val_df, test_df
 
+
+def scale_AMS(df, min_AMS, max_AMS, k=1.2):
+    """
+    Scale the AMS values in the DataFrame to a specified range.
+
+    Parameters:
+    - df (DataFrame): DataFrame containing the AMS values to be scaled.
+    - min_AMS (float): Minimum value of the range.
+    - max_AMS (float): Maximum value of the range.
+    - k (float): Multiplication factor to extend the range of AMS values. Defaults to 1.2.
+
+    Returns:
+    - df (DataFrame): DataFrame with scaled AMS values.
+    """
+    min_AMS = min_AMS - 1e-2  # to avoid zero values
+    max_AMS = max_AMS * k  # to allow higher values
+
+    df['AMS'] = df.apply(lambda row: (row['AMS'] - min_AMS) / (max_AMS - min_AMS), axis=1)
+
+    return df
+
+
+def inverse_scale_AMS(AMS_array, min_AMS, max_AMS, k=1.2):
+    """
+    Inverse scale the AMS values in the array to the original range.
+
+    Parameters:
+    - AMS_array (numpy.ndarray): NumPy array of AMS values.
+    - min_AMS (float): Minimum value of the original range.
+    - max_AMS (float): Maximum value of the original range.
+    - k (float): Multiplication factor used for scaling. Defaults to 1.2.
+
+    Returns:
+    - scaled_AMS (numpy.ndarray): NumPy array of inverse-scaled AMS values.
+    """
+    
+    min_AMS_adjusted = min_AMS - 1e-2  
+    max_AMS_adjusted = max_AMS * k
+
+    scaled_AMS = AMS_array * (max_AMS_adjusted - min_AMS_adjusted) + min_AMS_adjusted
+
+    return scaled_AMS
+
+    
 def geographic_plot(df, parameter1, parameter2):
+    """
+    Plot geographic distribution of two parameters.
+
+    Parameters:
+    - df (DataFrame): DataFrame containing geographic coordinates and parameters.
+    - parameter1 (str): Name of the first parameter to plot.
+    - parameter2 (str): Name of the second parameter to plot.
+
+    Returns:
+    None
+    """
     # Create subplots
     fig, ax = plt.subplots(1, 2, figsize=(15, 5))
 
@@ -81,7 +203,14 @@ def geographic_plot(df, parameter1, parameter2):
 
 def make_pca(df, n_components):
     '''
-    Apply PCA to the dataset
+    Apply PCA to the dataset.
+
+    Parameters:
+    - df (DataFrame): DataFrame containing the dataset.
+    - n_components (int): Number of principal components to retain.
+
+    Returns:
+    - pca_df (DataFrame): DataFrame containing the transformed dataset after PCA.
     '''
     pca = PCA(n_components=n_components)
     pca.fit(df)
@@ -90,10 +219,25 @@ def make_pca(df, n_components):
 
 def train_nn_model(model, X, y, batch_size, loss, lr, epochs, verbose=0, patience=30, validation_data=None, **fit_params):
     '''
-    Train the neuro probabilistic model
+    Train the neural network model.
+
+    Parameters:
+    - model (Model): Compiled neural network model.
+    - X (numpy.ndarray): Input data.
+    - y (numpy.ndarray): Target data.
+    - batch_size (int): Batch size.
+    - loss (str): Loss function.
+    - lr (float): Learning rate.
+    - epochs (int): Number of epochs.
+    - verbose (int): Verbosity mode. 0 = silent, 1 = progress bar, 2 = one line per epoch.
+    - patience (int): Number of epochs with no improvement after which training will be stopped if no improvement is seen.
+    - validation_data (tuple): Tuple of input and target data for validation.
+    - **fit_params: Additional keyword arguments to be passed to the fit method.
+
+    Returns:
+    - history (History): History object containing training metrics.
     '''
     
-    # Compile the model
     model.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=lr), loss=loss)
     
     # Build the early stop callback
@@ -101,14 +245,22 @@ def train_nn_model(model, X, y, batch_size, loss, lr, epochs, verbose=0, patienc
     if validation_data is not None:
         cb += [callbacks.EarlyStopping(monitor='val_loss', patience=patience, restore_best_weights=True, mode='auto', min_delta=1e-3)]
         
-    # Train the model
     history = model.fit(X, y, batch_size=batch_size, epochs=epochs, callbacks=cb, validation_data=validation_data, verbose=verbose, **fit_params)
   
     return history
 
+        
 def plot_training_history(history=None, figsize=None, print_final_scores=True):
     '''
-    Plot the training history of the model
+    Plot the training history of the model.
+
+    Parameters:
+    - history (History): History object containing training metrics.
+    - figsize (tuple): Size of the figure (width, height) in inches.
+    - print_final_scores (bool): Whether to print the final loss scores or not.
+
+    Returns:
+    None
     '''
     
     plt.figure(figsize=figsize)
@@ -131,9 +283,20 @@ def plot_training_history(history=None, figsize=None, print_final_scores=True):
             s += f', {vll:.4f} (validation)'
         print(s)
 
+    
 def plot_hist_samples(y, y_pred, color):
+    '''
+    Plot histograms of true data and predicted samples.
+
+    Parameters:
+    - y (numpy.ndarray): True data.
+    - y_pred (numpy.ndarray): Predicted samples.
+    - color (str): Color of the histogram for predicted samples.
+
+    Returns:
+    None
+    '''
     plt.hist(y, bins='auto', alpha=0.7, label="Data", color='green');
-    #sns.kdeplot(y_pred, label='Estimated sample', fill=True)
     plt.hist(y_pred, bins='auto', alpha=0.5, label='Sample', color=color);
     plt.xlabel('AMS')
     plt.ylabel('Counts')
@@ -216,69 +379,6 @@ def percentage_in_ci(inputs, y, dist, confidence, distribution = 'beta', start =
 
     return true_guess
             
-        
-def standardize(df, distribution):
-    '''Standardize the dataset depending on the distribution '''
-
-    if(distribution == 'gumbel'):
-        features_not_to_scale = ['ID', 'AMS', 'mean_IdD', 'loc', 'scale', 'duration[h]']
-        #scaler = MinMaxScaler() #min max scaler to have values in range [0, 1]
-        scaler = StandardScaler() #standard scaler to have values with mean 0 and std 1
-    else:
-        features_not_to_scale = ['ID', 'AMS', 'mean_IdD', 'duration[h]']
-        #different scalers 
-        #scaler = MinMaxScaler()
-        #scaler = RobustScaler(with_centering=False)
-        scaler = StandardScaler()
-    
-    features_to_scale = df.columns.drop(features_not_to_scale)
-    order_columns = features_not_to_scale + list(features_to_scale)
-    scaled_data = scaler.fit_transform(df[features_to_scale])
-    non_scaled_data = df[features_not_to_scale]
-    std_df = np.concatenate([non_scaled_data, scaled_data], axis=1)
-
-    # convert to dataframe
-    std_df = pd.DataFrame(std_df, columns=order_columns)
-
-    # scale AMS
-    '''if distribution == 'beta':
-        mmAMS_scaler = MinMaxScaler(feature_range=(0.001, 0.99))
-        ams = std_df[['AMS']]
-        scaled_ams = mmAMS_scaler.fit_transform(ams)
-        std_df['AMS'] = scaled_ams'''
-    
-    return std_df
-
-def scale_AMS(df, min_AMS, max_AMS, k = 1.2):
-    """
-        df: dataframe
-        k: Multiplication factor to extend the range of AMS values. Defaults to 1.
-        IdD: To specify how standardize. Defaults to False.
-    """
-
-    min_AMS = min_AMS - 1e-2 # to avoid zero values
-    max_AMS = max_AMS * k
-
-    df['AMS'] = df.apply(lambda row: (row['AMS'] - min_AMS) / (max_AMS - min_AMS), axis=1)
-
-    return df
-
-def inverse_scale_AMS(AMS_array, min_AMS, max_AMS, k=1.2):
-    """
-    AMS_array: NumPy array of AMS values.
-    min_AMS, max_AMS: Minimum and maximum AMS values for scaling.
-    k: Multiplication factor to extend the range of AMS values. Defaults to 1.2.
-    """
-    
-    # Adjust the min and max AMS values according to the provided adjustments
-    min_AMS_adjusted = min_AMS - 1e-2  # to avoid zero values
-    max_AMS_adjusted = max_AMS * k
-
-    # Scale the AMS values directly in the array
-    scaled_AMS = AMS_array * (max_AMS_adjusted - min_AMS_adjusted) + min_AMS_adjusted
-
-    return scaled_AMS
-
 
 def parameters_metrics(dist, true_parameters, distribution_name = 'beta',  indexes = None, plot = True, calculate_metrics = True, remove_outliers = False, title = 'Test'):
 
@@ -431,9 +531,6 @@ def compare_samples(dist, distribution_name, parameters, seed, index = 30):
 
 
     
-
-
-
 def get_comparison_plot(df1, df2, title, dist_name, colors):
     '''
     Function to plot the comparison of the results between the models.
@@ -469,17 +566,41 @@ def get_comparison_plot(df1, df2, title, dist_name, colors):
     axes[1].axhline(0, color='grey', linestyle='--')  # Add line at zero value
     plt.tight_layout()
 
-def get_global_results(metrics_name,models_name,models_metrics):    
+
+def get_global_results(metrics_name, models_name, models_metrics):    
+    '''
+    Get global results DataFrame.
+
+    Parameters:
+    - metrics_name (list): List of metric names.
+    - models_name (list): List of model names.
+    - models_metrics (list): List of DataFrames containing metrics for each model.
+
+    Returns:
+    - df_result (DataFrame): Global results DataFrame.
+    '''
     df_result = pd.DataFrame()
     for i, name_metrics in enumerate(metrics_name):
         for j in range(len(models_name)):
-            df_result[name_metrics + "_" + models_name[j]  ] = models_metrics[j].iloc[i,:]
+            df_result[name_metrics + "_" + models_name[j]] = models_metrics[j].iloc[i, :]
     return df_result
 
 
 def parameters_to_dict(test_df, distribution_name, model, DURATION):
-    
-    test_df = test_df.drop_duplicates(inplace=False) #so that each station is present once at a given duration
+    '''
+    Convert predicted distribution parameters to dictionaries.
+
+    Parameters:
+    - test_df (DataFrame): DataFrame containing the test data.
+    - distribution_name (str): Name of the distribution ('beta' or 'gumbel').
+    - model (Model): Trained probabilistic model.
+    - DURATION (list): List of duration values.
+
+    Returns:
+    - param1_dict_pred (dict): Dictionary containing predicted parameter 1 values for each duration and ID.
+    - param2_dict_pred (dict): Dictionary containing predicted parameter 2 values for each duration and ID.
+    '''
+    test_df = test_df.drop_duplicates(inplace=False) # so that each station is present once at a given duration
     
     param1_dict_pred = {}
     param2_dict_pred = {}
@@ -490,7 +611,7 @@ def parameters_to_dict(test_df, distribution_name, model, DURATION):
             test = test_df[test_df['duration[h]_'+str(duration)] == 1]
             id = test['ID']
             
-            test = test[test.columns[1:]] #test contains ID which is not an input to the model
+            test = test[test.columns[1:]] # test contains ID which is not an input to the model
             dist = model(test.values)
             
             alpha_pred = dist.concentration1.numpy().ravel()
@@ -505,7 +626,7 @@ def parameters_to_dict(test_df, distribution_name, model, DURATION):
             test = test_df[test_df['duration[h]_'+str(duration)] == 1]
             id = test['ID']
             
-            test = test[test.columns[1:]]
+            test = test[test.columns[1:]] # test contains ID which is not an input to the model
             dist = model(test.values)
             
             loc_pred = dist.loc.numpy().ravel()
@@ -521,7 +642,20 @@ def parameters_to_dict(test_df, distribution_name, model, DURATION):
 
 
 def KS_statistic(AMS_dict_test, param1_dict, param2_dict, distribution_name, DURATION):
-    
+    '''
+    Calculate the Kolmogorov-Smirnov statistic and p-values.
+
+    Parameters:
+    - AMS_dict_test (dict): Dictionary containing AMS values for each duration and ID.
+    - param1_dict (dict): Dictionary containing predicted parameter 1 values for each duration and ID.
+    - param2_dict (dict): Dictionary containing predicted parameter 2 values for each duration and ID.
+    - distribution_name (str): Name of the distribution ('beta' or 'gumbel').
+    - DURATION (list): List of duration values.
+
+    Returns:
+    - ks_stat_dict (dict): Dictionary containing KS statistic values for each duration and ID.
+    - p_value_dict (dict): Dictionary containing p-values for each duration and ID.
+    '''
     ks_stat_dict = {}
     p_value_dict = {}
     
@@ -551,6 +685,7 @@ def KS_statistic(AMS_dict_test, param1_dict, param2_dict, distribution_name, DUR
             ks_stat_dict[duration][id], p_value_dict[duration][id] = stats.ks_1samp(ams[id], dist_pred.cdf)[:2]
             
     return ks_stat_dict, p_value_dict
+
 
 
 
