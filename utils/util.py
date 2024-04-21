@@ -305,6 +305,9 @@ def plot_hist_samples(y, y_pred, color):
 
 
 def plot_series(data, labels=None, predictions=None, figsize=None, filled_version=None, std=None, ci=None, title=None, ylim=None):
+    ''' 
+    Plot the series data with confidence intervals, labels and predictions.
+    '''
     plt.figure(figsize=figsize)
     plt.plot(data.index, data.values, zorder=0)
     
@@ -346,7 +349,9 @@ def plot_series(data, labels=None, predictions=None, figsize=None, filled_versio
 
 
 def percentage_in_ci(inputs, y, dist, confidence, distribution = 'beta', start = None, end = None, plot = True, num_samples=1):
-    '''Compute the percentage of true values in the confidence interval'''
+    '''
+    Compute the percentage of true values in the confidence interval.
+    '''
     
     inputs = inputs.reset_index()
 
@@ -381,6 +386,9 @@ def percentage_in_ci(inputs, y, dist, confidence, distribution = 'beta', start =
             
 
 def parameters_metrics(dist, true_parameters, distribution_name = 'beta',  indexes = None, plot = True, calculate_metrics = True, remove_outliers = False, title = 'Test'):
+    '''
+    Compute the metrics for the parameters of the distribution.
+    '''
 
     if distribution_name == 'gumbel':
         param1_name_true = 'loc'
@@ -441,7 +449,6 @@ def parameters_metrics(dist, true_parameters, distribution_name = 'beta',  index
         plt.show()
 
     if calculate_metrics:
-        
         metrics_param1_durations = {}
         metrics_param2_durations = {}
         
@@ -493,7 +500,9 @@ def parameters_metrics(dist, true_parameters, distribution_name = 'beta',  index
     return None
    
 def compare_samples(dist, distribution_name, parameters, seed, index = 30):
-    '''Compare the true and predicted samples of the distribution'''
+    '''
+    Compare the true and predicted samples of the distribution.
+    '''
     
     if(distribution_name == 'gumbel'):
         param1_pred = dist.loc.numpy().ravel()[index]
@@ -685,7 +694,3 @@ def KS_statistic(AMS_dict_test, param1_dict, param2_dict, distribution_name, DUR
             ks_stat_dict[duration][id], p_value_dict[duration][id] = stats.ks_1samp(ams[id], dist_pred.cdf)[:2]
             
     return ks_stat_dict, p_value_dict
-
-
-
-
